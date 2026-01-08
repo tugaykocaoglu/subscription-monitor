@@ -126,16 +126,11 @@ export async function getSubscriptionsDueForReminder(supabaseClient?: any) {
       if (isDue) {
         // Check idempotency: Have we sent this SPECIFIC reminder type for this SPECIFIC renewal date?
         // We use a window check on scheduled_at to ensure we don't send duplicates for the same cycle.
-        const windowLow = new Date(
-          windowStart - 12 * 60 * 60 * 1000
-        ).toISOString();
-        const windowHigh = new Date(windowEnd).toISOString();
-
         if (process.env.NODE_ENV === 'development') {
           console.log(`[DEBUG] Checking previous job for sub ${sub.id} 
              - Type: renewal_reminder
              - Channel: ${rule.channel}
-             - Window: ${windowLow} to ${windowHigh}
+             - ScheduledAt: ${reminderDate.toISOString()}
            `);
 
           // DEEP DEBUG: Fetch ALL jobs for this subscription
@@ -152,9 +147,10 @@ export async function getSubscriptionsDueForReminder(supabaseClient?: any) {
           .eq('subscription_id', sub.id)
           .eq('type', 'renewal_reminder')
           .eq('channel', rule.channel)
-          // Check if there's a job created roughly for this target time (within 24h error margin)
-          .gte('scheduled_at', windowLow)
-          .lt('scheduled_at', windowHigh)
+          // STRICT IDEMPOTENCY: Check for exact scheduled time.
+          // This allows multiple rules (e.g. 3 days before vs 1 day before) to coexist
+          // as long as they have different target times.
+          .eq('scheduled_at', reminderDate.toISOString())
           .limit(1);
 
         if (process.env.NODE_ENV === 'development') {
