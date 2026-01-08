@@ -23,7 +23,7 @@ export async function TopNav() {
                 SubMonitor
               </Link>
             </div>
-            <div className='hidden sm:ml-6 sm:flex sm:space-x-8'>
+            <div className='hidden sm:ml-6 sm:flex sm:space-x-8 flex items-center'>
               <Button variant='ghost' asChild>
                 <Link href='/dashboard'>Dashboard</Link>
               </Button>

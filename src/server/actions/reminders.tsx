@@ -2,6 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { Resend } from 'resend';
+import { RuleCreatedEmail } from '@/components/emails/RuleCreatedEmail';
+import { render } from '@react-email/render';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function createReminderRule(formData: FormData) {
   const supabase = await createClient();
@@ -23,7 +28,7 @@ export async function createReminderRule(formData: FormData) {
 
   const daysBefore = parseInt(daysBeforeValue.toString());
   const channel = channelValue.toString();
-  const sendHour = sendHourValue ? parseInt(sendHourValue.toString()) : 9;
+  const sendHour = sendHourValue ? sendHourValue.toString() : '09:00:00';
 
   const { error } = await supabase.from('reminder_rules').insert({
     user_id: user.id,
@@ -35,6 +40,29 @@ export async function createReminderRule(formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  const html = await render(
+    <RuleCreatedEmail
+      daysBefore={daysBefore}
+      channel={channel}
+      sendHour={sendHour}
+    />
+  );
+
+  // Send confirmation email if channel is email
+  if (channel === 'email' && user.email) {
+    try {
+      await resend.emails.send({
+        from: 'SubMonitor <onboarding@resend.dev>',
+        to: [user.email],
+        subject: 'New Reminder Rule Created',
+        html: html,
+      });
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+      // We don't return error here because the rule was successfully created
+    }
   }
 
   revalidatePath('/settings');
@@ -57,7 +85,7 @@ export async function updateReminderRule(id: string, formData: FormData) {
   const updates: any = {};
   if (daysBeforeValue)
     updates.days_before = parseInt(daysBeforeValue.toString());
-  if (sendHourValue) updates.send_hour = parseInt(sendHourValue.toString());
+  if (sendHourValue) updates.send_hour = sendHourValue.toString();
   if (isEnabledValue !== null) updates.is_enabled = isEnabledValue === 'true';
 
   const { error } = await supabase

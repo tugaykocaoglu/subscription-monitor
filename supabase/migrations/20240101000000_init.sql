@@ -51,11 +51,10 @@ create table reminder_rules (
   user_id uuid not null references auth.users(id),
   days_before int not null check (days_before >= 0),
   channel text not null check (channel in ('email', 'sms', 'push')),
-  send_hour smallint not null default 9 check (send_hour between 0 and 23),
+  send_hour time not null default '09:00:00',
   is_enabled boolean default true,
   created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  unique (user_id, days_before, channel)
+  updated_at timestamptz default now()
 );
 
 -- 5. Notification Jobs Table

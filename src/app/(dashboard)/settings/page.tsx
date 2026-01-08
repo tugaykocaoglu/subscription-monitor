@@ -109,7 +109,7 @@ export default function SettingsPage() {
                       {rule.days_before === 1 ? 'day' : 'days'}
                     </TableCell>
                     <TableCell className='capitalize'>{rule.channel}</TableCell>
-                    <TableCell>{rule.send_hour}:00</TableCell>
+                    <TableCell>{rule.send_hour}</TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
@@ -164,14 +164,12 @@ export default function SettingsPage() {
                   </Select>
                 </div>
                 <div className='space-y-2'>
-                  <Label htmlFor='send_hour'>Send Hour (24h)</Label>
+                  <Label htmlFor='send_hour'>Send Time</Label>
                   <Input
                     id='send_hour'
                     name='send_hour'
-                    type='number'
-                    min='0'
-                    max='23'
-                    defaultValue='9'
+                    type='time'
+                    defaultValue='09:00'
                     required
                   />
                 </div>

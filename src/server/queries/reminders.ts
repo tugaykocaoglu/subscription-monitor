@@ -25,7 +25,8 @@ export async function getSubscriptionsDueForReminder() {
       custom_name,
       amount,
       currency,
-      next_renew_at
+      next_renew_at,
+      profile:profiles(email)
     `
     )
     .eq('status', 'active')
@@ -53,7 +54,10 @@ export async function getSubscriptionsDueForReminder() {
 
       const reminderDate = new Date(renewDate);
       reminderDate.setDate(reminderDate.getDate() - rule.days_before);
-      reminderDate.setHours(rule.send_hour, 0, 0, 0);
+
+      // Parse time string (e.g., "09:00:00" or "09:00")
+      const [hours, minutes] = rule.send_hour.split(':').map(Number);
+      reminderDate.setHours(hours || 9, minutes || 0, 0, 0);
 
       // Check if we should send reminder now
       if (
