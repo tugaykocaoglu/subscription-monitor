@@ -46,43 +46,78 @@ export async function getSubscriptionsDueForReminder() {
   const now = new Date();
   const subscriptionsNeedingReminders: any[] = [];
 
+  console.log(
+    `[DEBUG] Checking ${data.length} subscriptions against ${rules.length} rules`
+  );
+
   for (const sub of data) {
+    if (!sub.next_renew_at) continue;
+
+    // Ensure we work with a Date object
     const renewDate = new Date(sub.next_renew_at);
 
     for (const rule of rules) {
       if (rule.user_id !== sub.user_id) continue;
 
+      // Calculate reminder date
       const reminderDate = new Date(renewDate);
       reminderDate.setDate(reminderDate.getDate() - rule.days_before);
 
-      // Parse time string (e.g., "09:00:00" or "09:00")
-      const [hours, minutes] = rule.send_hour.split(':').map(Number);
-      reminderDate.setHours(hours || 9, minutes || 0, 0, 0);
+      // Parse time string carefully (e.g., "09:00:00" or "09:00")
+      const timeParts = rule.send_hour.toString().split(':');
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
 
-      // Check if we should send reminder now
-      if (
-        reminderDate <= now &&
-        reminderDate > new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      ) {
-        // Check if notification job already exists
+      reminderDate.setHours(hours, minutes, 0, 0);
+
+      // Define the "Due Window"
+      // A reminder is due if current time is AFTER reminderDate
+      // AND current time is NOT MORE THAN 24 hours after reminderDate (to avoid sending old reminders)
+      const windowStart = reminderDate.getTime();
+      const windowEnd = windowStart + 24 * 60 * 60 * 1000; // 24 hours window
+      const nowTime = now.getTime();
+
+      const isDue = nowTime >= windowStart && nowTime < windowEnd;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[DEBUG] Sub: ${sub.custom_name || sub.id} 
+         - Renew: ${renewDate.toISOString()}
+         - Rule: ${rule.days_before} days before @ ${rule.send_hour}
+         - Reminder Target: ${reminderDate.toISOString()}
+         - Now: ${now.toISOString()}
+         - Is Due? ${isDue}`);
+      }
+
+      if (isDue) {
+        // Check idempotency: Have we sent this SPECIFIC reminder type for this SPECIFIC renewal date?
+        // We use a window check on scheduled_at to ensure we don't send duplicates for the same cycle.
         const { data: existingJob } = await supabase
           .from('notification_jobs')
-          .select('id')
+          .select('id, status')
           .eq('subscription_id', sub.id)
           .eq('type', 'renewal_reminder')
           .eq('channel', rule.channel)
+          // Check if there's a job created roughly for this target time (within 24h error margin)
           .gte(
             'scheduled_at',
-            new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+            new Date(windowStart - 12 * 60 * 60 * 1000).toISOString()
           )
+          .lt('scheduled_at', new Date(windowEnd).toISOString())
           .single();
 
         if (!existingJob) {
+          console.log(`[DEBUG] -> Queuing reminder for ${sub.id}`);
           subscriptionsNeedingReminders.push({
             subscription: sub,
             rule,
             scheduledAt: reminderDate,
           });
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(
+              `[DEBUG] -> Skipped (Job exists: ${existingJob.status})`
+            );
+          }
         }
       }
     }

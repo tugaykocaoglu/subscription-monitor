@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+
 import { getReminderRules } from '@/server/actions/reminders-query';
 import { createReminderRule } from '@/server/actions/reminders';
+
+import { AlertCircle } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,7 +34,6 @@ import {
 } from '@/components/ui/select';
 import { DeleteReminderButton } from '@/components/reminders/DeleteReminderButton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   const [rules, setRules] = useState<any[]>([]);

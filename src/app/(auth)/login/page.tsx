@@ -61,7 +61,7 @@ export default function LoginPage() {
             </div>
             <Button type='submit' className='w-full' disabled={isLoading}>
               {isLoading && <Spinner className='mr-2 h-4 w-4' />}
-              Sign in {isLoading.toString()}
+              Sign in
             </Button>
           </form>
         </CardContent>

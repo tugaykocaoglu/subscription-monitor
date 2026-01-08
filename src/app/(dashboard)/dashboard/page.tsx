@@ -117,6 +117,7 @@ export default async function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Subscription</TableHead>
+                  <TableHead>Category</TableHead>
                   <TableHead>Renewal Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead className='text-right'>Days Until</TableHead>
@@ -125,13 +126,24 @@ export default async function DashboardPage() {
               <TableBody>
                 {stats.upcomingRenewals.map((sub: any) => {
                   const daysUntil = getDaysUntil(sub.next_renew_at);
+                  console.log('sub', sub);
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className='font-medium'>
                         {sub.provider?.display_name || sub.custom_name}
                       </TableCell>
+                      <TableCell className='font-medium'>
+                        {sub.categories?.name}
+                      </TableCell>
                       <TableCell>
-                        {new Date(sub.next_renew_at).toLocaleDateString()}
+                        {new Date(sub.next_renew_at).toLocaleDateString(
+                          'en-US',
+                          {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          }
+                        )}
                       </TableCell>
                       <TableCell>
                         {formatCurrency(sub.amount, sub.currency)}

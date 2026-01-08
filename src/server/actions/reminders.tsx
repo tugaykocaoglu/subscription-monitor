@@ -54,7 +54,7 @@ export async function createReminderRule(formData: FormData) {
   if (channel === 'email' && user.email) {
     try {
       await resend.emails.send({
-        from: 'SubMonitor <onboarding@resend.dev>',
+        from: 'SubMonitor <noreply@submonitor.com>',
         to: [user.email],
         subject: 'New Reminder Rule Created',
         html: html,
