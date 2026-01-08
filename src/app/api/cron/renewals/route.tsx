@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import {
   getSubscriptionsToRollover,
   calculateNextRenewal,
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
   const results = [];
 
   try {
-    const supabase = await createClient();
-    const subscriptionsToRollover = await getSubscriptionsToRollover();
+    const supabase = createAdminClient();
+    const subscriptionsToRollover = await getSubscriptionsToRollover(supabase);
 
     console.log(
       `[CRON] Found ${subscriptionsToRollover.length} subscriptions to rollover`

@@ -59,7 +59,14 @@ export default async function SubscriptionsPage() {
                       <TableCell>{sub.billing_cycle}</TableCell>
                       <TableCell>
                         {sub.next_renew_at
-                          ? new Date(sub.next_renew_at).toLocaleDateString()
+                          ? new Date(sub.next_renew_at).toLocaleDateString(
+                              'en-US',
+                              {
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric',
+                              }
+                            )
                           : '-'}
                       </TableCell>
                       <TableCell>

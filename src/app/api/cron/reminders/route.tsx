@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { getSubscriptionsDueForReminder } from '@/server/queries/reminders';
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient();
-    const subscriptionsToRemind = await getSubscriptionsDueForReminder();
+    const supabase = createAdminClient();
+    const subscriptionsToRemind =
+      await getSubscriptionsDueForReminder(supabase);
 
     console.log(
       `[CRON] Found ${subscriptionsToRemind.length} subscriptions to remind`

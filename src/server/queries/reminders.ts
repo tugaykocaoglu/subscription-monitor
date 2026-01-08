@@ -11,11 +11,12 @@ export async function getReminderRules() {
   return data;
 }
 
-export async function getSubscriptionsDueForReminder() {
-  const supabase = await createClient();
+export async function getSubscriptionsDueForReminder(supabaseClient?: any) {
+  const supabase = supabaseClient || (await createClient());
 
   // Get all active subscriptions with their reminder rules
-  const { data, error } = await supabase
+  // 1. Get all active subscriptions
+  const { data: subscriptions, error } = await supabase
     .from('subscriptions')
     .select(
       `
@@ -25,8 +26,7 @@ export async function getSubscriptionsDueForReminder() {
       custom_name,
       amount,
       currency,
-      next_renew_at,
-      profile:profiles(email)
+      next_renew_at
     `
     )
     .eq('status', 'active')
@@ -34,6 +34,21 @@ export async function getSubscriptionsDueForReminder() {
     .is('deleted_at', null);
 
   if (error) throw error;
+  if (!subscriptions) return [];
+
+  // 2. Manual join profiles for emails
+  const userIds = Array.from(new Set(subscriptions.map((s: any) => s.user_id)));
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .in('id', userIds);
+
+  const profileMap = new Map(profiles?.map((p: any) => [p.id, p.email]));
+
+  const data = subscriptions.map((sub: any) => ({
+    ...sub,
+    profile: { email: profileMap.get(sub.user_id) },
+  }));
 
   // Get all enabled reminder rules
   const { data: rules } = await supabase
@@ -91,33 +106,55 @@ export async function getSubscriptionsDueForReminder() {
       if (isDue) {
         // Check idempotency: Have we sent this SPECIFIC reminder type for this SPECIFIC renewal date?
         // We use a window check on scheduled_at to ensure we don't send duplicates for the same cycle.
-        const { data: existingJob } = await supabase
+        const windowLow = new Date(
+          windowStart - 12 * 60 * 60 * 1000
+        ).toISOString();
+        const windowHigh = new Date(windowEnd).toISOString();
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[DEBUG] Checking previous job for sub ${sub.id} 
+             - Type: renewal_reminder
+             - Channel: ${rule.channel}
+             - Window: ${windowLow} to ${windowHigh}
+           `);
+
+          // DEEP DEBUG: Fetch ALL jobs for this subscription
+          const { data: allJobs } = await supabase
+            .from('notification_jobs')
+            .select('*')
+            .eq('subscription_id', sub.id);
+          console.log(`[DEBUG] ALL jobs for sub ${sub.id}:`, allJobs);
+        }
+
+        const { data: existingJobs, error: jobCheckError } = await supabase
           .from('notification_jobs')
-          .select('id, status')
+          .select('id, status, scheduled_at')
           .eq('subscription_id', sub.id)
           .eq('type', 'renewal_reminder')
           .eq('channel', rule.channel)
           // Check if there's a job created roughly for this target time (within 24h error margin)
-          .gte(
-            'scheduled_at',
-            new Date(windowStart - 12 * 60 * 60 * 1000).toISOString()
-          )
-          .lt('scheduled_at', new Date(windowEnd).toISOString())
-          .single();
+          .gte('scheduled_at', windowLow)
+          .lt('scheduled_at', windowHigh)
+          .limit(1);
 
-        if (!existingJob) {
+        if (process.env.NODE_ENV === 'development') {
+          if (jobCheckError) {
+            console.error(`[DEBUG] Job check error:`, jobCheckError);
+          }
+          if (existingJobs && existingJobs.length > 0) {
+            console.log(`[DEBUG] Found existing job:`, existingJobs[0]);
+          } else {
+            console.log(`[DEBUG] No existing job found`);
+          }
+        }
+
+        if (!existingJobs || existingJobs.length === 0) {
           console.log(`[DEBUG] -> Queuing reminder for ${sub.id}`);
           subscriptionsNeedingReminders.push({
             subscription: sub,
             rule,
             scheduledAt: reminderDate,
           });
-        } else {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(
-              `[DEBUG] -> Skipped (Job exists: ${existingJob.status})`
-            );
-          }
         }
       }
     }
