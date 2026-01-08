@@ -1,10 +1,17 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
+import { ProfileDropdown } from '@/components/layout/ProfileDropdown';
+import { createClient } from '@/lib/supabase/server';
 
-export function LandingHeader() {
+export async function LandingHeader() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
-    <header className=' shadow-sm'>
+    <header className='shadow-sm'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         <div className='flex justify-between h-16 items-center'>
           <div className='flex-shrink-0'>
@@ -14,12 +21,23 @@ export function LandingHeader() {
           </div>
           <div className='flex space-x-4 items-center'>
             <ModeToggle />
-            <Button variant='ghost' asChild>
-              <Link href='/login'>Log in</Link>
-            </Button>
-            <Button asChild>
-              <Link href='/subscriptions'>Subscriptions</Link>
-            </Button>
+            {user ? (
+              <>
+                <Button variant='ghost' asChild>
+                  <Link href='/dashboard'>Dashboard</Link>
+                </Button>
+                <ProfileDropdown userEmail={user.email || ''} />
+              </>
+            ) : (
+              <>
+                <Button variant='ghost' asChild>
+                  <Link href='/login'>Log in</Link>
+                </Button>
+                <Button asChild>
+                  <Link href='/register'>Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

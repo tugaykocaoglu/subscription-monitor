@@ -1,10 +1,219 @@
-export default function DashboardPage() {
+import { getDashboardStats } from '@/server/queries/dashboard';
+import { formatCurrency, getDaysUntil } from '@/lib/utils/currency';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { CreditCard, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+
+export default async function DashboardPage() {
+  const stats = await getDashboardStats();
+
   return (
-    <div>
-      <h1 className='text-2xl font-semibold text-foreground'>Dashboard</h1>
-      <p className='mt-4 text-muted-foreground'>
-        Welcome to your subscription monitor.
-      </p>
+    <div className='space-y-6'>
+      <div className='flex justify-between items-center'>
+        <div>
+          <h1 className='text-3xl font-bold text-foreground'>Dashboard</h1>
+          <p className='text-muted-foreground mt-2'>
+            Overview of your subscriptions
+          </p>
+        </div>
+        <Button asChild>
+          <Link href='/subscriptions/new'>Add Subscription</Link>
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>
+              Total Subscriptions
+            </CardTitle>
+            <CreditCard className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{stats.totalSubscriptions}</div>
+            <p className='text-xs text-muted-foreground'>
+              Active subscriptions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Monthly Cost</CardTitle>
+            <DollarSign className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              {formatCurrency(stats.monthlyTotal, stats.currency)}
+            </div>
+            <p className='text-xs text-muted-foreground'>
+              Normalized monthly spending
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Next Renewal</CardTitle>
+            <Calendar className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              {stats.nextRenewal
+                ? `${getDaysUntil(stats.nextRenewal)} days`
+                : 'N/A'}
+            </div>
+            <p className='text-xs text-muted-foreground'>
+              {stats.nextRenewal
+                ? new Date(stats.nextRenewal).toLocaleDateString()
+                : 'No upcoming renewals'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Yearly Cost</CardTitle>
+            <TrendingUp className='h-4 w-4 text-muted-foreground' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              {formatCurrency(stats.monthlyTotal * 12, stats.currency)}
+            </div>
+            <p className='text-xs text-muted-foreground'>
+              Projected annual spending
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Upcoming Renewals */}
+      {stats.upcomingRenewals.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Renewals</CardTitle>
+            <CardDescription>
+              Subscriptions renewing in the next 30 days
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Subscription</TableHead>
+                  <TableHead>Renewal Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead className='text-right'>Days Until</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.upcomingRenewals.map((sub: any) => {
+                  const daysUntil = getDaysUntil(sub.next_renew_at);
+                  return (
+                    <TableRow key={sub.id}>
+                      <TableCell className='font-medium'>
+                        {sub.provider?.display_name || sub.custom_name}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(sub.next_renew_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(sub.amount, sub.currency)}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        <span
+                          className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                            daysUntil <= 7
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {daysUntil} {daysUntil === 1 ? 'day' : 'days'}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Spending by Category */}
+      {Object.keys(stats.spendingByCategory).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Spending by Category</CardTitle>
+            <CardDescription>Monthly spending breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className='space-y-4'>
+              {Object.entries(stats.spendingByCategory)
+                .sort(([, a], [, b]) => (b as number) - (a as number))
+                .map(([category, amount]) => {
+                  const percentage = (
+                    ((amount as number) / stats.monthlyTotal) *
+                    100
+                  ).toFixed(1);
+                  return (
+                    <div key={category} className='space-y-2'>
+                      <div className='flex items-center justify-between text-sm'>
+                        <span className='font-medium'>{category}</span>
+                        <span className='text-muted-foreground'>
+                          {formatCurrency(amount as number, stats.currency)} (
+                          {percentage}%)
+                        </span>
+                      </div>
+                      <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
+                        <div
+                          className='h-full bg-primary'
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty State */}
+      {stats.totalSubscriptions === 0 && (
+        <Card>
+          <CardContent className='pt-6'>
+            <div className='text-center py-12'>
+              <CreditCard className='mx-auto h-12 w-12 text-muted-foreground' />
+              <h3 className='mt-4 text-lg font-semibold'>
+                No subscriptions yet
+              </h3>
+              <p className='mt-2 text-sm text-muted-foreground'>
+                Get started by adding your first subscription
+              </p>
+              <Button asChild className='mt-4'>
+                <Link href='/subscriptions/new'>Add Subscription</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

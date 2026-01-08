@@ -10,8 +10,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Check } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className='min-h-screen bg-background'>
       <LandingHeader />
@@ -44,14 +50,16 @@ export default function LandingPage() {
                     >
                       <Link href='/register'>Get started</Link>
                     </Button>
-                    <Button
-                      asChild
-                      variant='secondary'
-                      size='lg'
-                      className='w-full sm:w-auto text-base md:text-lg h-12 px-8'
-                    >
-                      <Link href='/login'>Log in</Link>
-                    </Button>
+                    {!user && (
+                      <Button
+                        asChild
+                        variant='secondary'
+                        size='lg'
+                        className='w-full sm:w-auto text-base md:text-lg h-12 px-8'
+                      >
+                        <Link href='/login'>Log in</Link>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

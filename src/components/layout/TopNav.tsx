@@ -1,11 +1,15 @@
-'use client';
-
 import Link from 'next/link';
-import { logout } from '@/server/actions/auth';
 import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
+import { ProfileDropdown } from '@/components/layout/ProfileDropdown';
+import { createClient } from '@/lib/supabase/server';
 
-export function TopNav() {
+export async function TopNav() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <nav className='bg-background shadow'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -33,7 +37,7 @@ export function TopNav() {
           </div>
           <div className='flex items-center space-x-4'>
             <ModeToggle />
-            <Button onClick={() => logout()}>Sign out</Button>
+            {user && <ProfileDropdown userEmail={user.email || ''} />}
           </div>
         </div>
       </div>
