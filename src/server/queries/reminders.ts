@@ -83,6 +83,8 @@ export async function getSubscriptionsDueForReminder(supabaseClient?: any) {
       const hours = parseInt(timeParts[0]);
       const minutes = parseInt(timeParts[1]);
 
+      // Treat input as UTC directly (Server Time)
+      // User must input time in UTC.
       reminderDate.setHours(hours, minutes, 0, 0);
 
       // Define the "Due Window"

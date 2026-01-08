@@ -10,7 +10,7 @@ create extension if not exists pg_net;
 -- Checks if any reminders need to be sent based on user rules
 select cron.schedule(
   'monitor_reminders',
-  '0 * * * *', -- Run every hour
+  '*/5 * * * *', -- Run every 5 minutes
   $$
   select
     net.http_get(

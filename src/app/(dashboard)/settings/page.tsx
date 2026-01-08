@@ -56,6 +56,28 @@ export default function SettingsPage() {
   }
 
   async function handleCreateRule(formData: FormData) {
+    // Client-side Timezone Handling:
+    // Convert the user's selected "16:40" (Local) to UTC specific timestamp
+    const sendHourLocal = formData.get('send_hour') as string;
+
+    if (sendHourLocal) {
+      const [hours, minutes] = sendHourLocal.split(':').map(Number);
+
+      // Create a date object for "today" at the specified local time
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+
+      // Extract UTC hours/minutes
+      // Example: User is TRT (UTC+3), enters 16:40.
+      // date object internally is 13:40 UTC.
+      // getUTCHours() returns 13.
+      const utcHours = date.getUTCHours().toString().padStart(2, '0');
+      const utcMinutes = date.getUTCMinutes().toString().padStart(2, '0');
+
+      // Update formData with UTC time string "13:40"
+      formData.set('send_hour', `${utcHours}:${utcMinutes}`);
+    }
+
     setError(null);
     const result = await createReminderRule(formData);
     if (result?.error) {
@@ -65,12 +87,22 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
-    return <div>Loading...</div>;
+  // Helper to convert UTC string from DB back to Local time for display
+  function formatTimeFromUTC(utcTimeStr: string) {
+    if (!utcTimeStr) return '';
+    const [utcHours, utcMinutes] = utcTimeStr.split(':').map(Number);
+
+    const date = new Date();
+    date.setUTCHours(utcHours, utcMinutes, 0, 0);
+
+    const localHours = date.getHours().toString().padStart(2, '0');
+    const localMinutes = date.getMinutes().toString().padStart(2, '0');
+    return `${localHours}:${localMinutes}`;
   }
 
   return (
     <div className='space-y-6'>
+      {/* ... (rest of the component structure is same, just need to use formatTimeFromUTC in rendering) */}
       <div>
         <h1 className='text-3xl font-bold text-foreground'>Settings</h1>
         <p className='text-muted-foreground mt-2'>
@@ -99,7 +131,7 @@ export default function SettingsPage() {
                 <TableRow>
                   <TableHead>Days Before</TableHead>
                   <TableHead>Channel</TableHead>
-                  <TableHead>Send Hour</TableHead>
+                  <TableHead>Send Hour (Local)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className='text-right'>Actions</TableHead>
                 </TableRow>
@@ -112,7 +144,7 @@ export default function SettingsPage() {
                       {rule.days_before === 1 ? 'day' : 'days'}
                     </TableCell>
                     <TableCell className='capitalize'>{rule.channel}</TableCell>
-                    <TableCell>{rule.send_hour}</TableCell>
+                    <TableCell>{formatTimeFromUTC(rule.send_hour)}</TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
