@@ -13,7 +13,7 @@ import {
 
 export default async function SubscriptionsPage() {
   const subscriptions = await getSubscriptions();
-
+  console.log('subscriptions', subscriptions);
   return (
     <div className='px-4 sm:px-6 lg:px-8'>
       <div className='sm:flex sm:items-center'>
@@ -54,7 +54,7 @@ export default async function SubscriptionsPage() {
                         {sub.provider?.display_name || sub.custom_name}
                       </TableCell>
                       <TableCell>
-                        {sub.amount} {sub.currency}
+                        {sub.amount} {sub.currencyInfo?.symbol}
                       </TableCell>
                       <TableCell>{sub.billing_cycle}</TableCell>
                       <TableCell>

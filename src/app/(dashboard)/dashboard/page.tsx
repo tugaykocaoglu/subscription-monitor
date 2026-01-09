@@ -19,9 +19,12 @@ import { CreditCard, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+// ... imports ...
+
 export default async function DashboardPage() {
   const stats = await getDashboardStats();
 
+  console.log('stats', stats);
   return (
     <div className='space-y-6'>
       <div className='flex justify-between items-center'>
@@ -59,10 +62,22 @@ export default async function DashboardPage() {
             <DollarSign className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>
-              {formatCurrency(stats.monthlyTotal, stats.currency)}
-            </div>
-            <p className='text-xs text-muted-foreground'>
+            {Object.entries(stats.monthlyTotal).length > 0 ? (
+              <div className='space-y-1'>
+                {Object.entries(stats.monthlyTotal).map(
+                  ([currency, amount]) => (
+                    <div key={currency} className='text-xl font-bold'>
+                      {formatCurrency(amount, currency)}
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className='text-2xl font-bold'>
+                {formatCurrency(0, 'USD')}
+              </div>
+            )}
+            <p className='text-xs text-muted-foreground mt-2'>
               Normalized monthly spending
             </p>
           </CardContent>
@@ -93,10 +108,22 @@ export default async function DashboardPage() {
             <TrendingUp className='h-4 w-4 text-muted-foreground' />
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>
-              {formatCurrency(stats.monthlyTotal * 12, stats.currency)}
-            </div>
-            <p className='text-xs text-muted-foreground'>
+            {Object.entries(stats.monthlyTotal).length > 0 ? (
+              <div className='space-y-1'>
+                {Object.entries(stats.monthlyTotal).map(
+                  ([currency, amount]) => (
+                    <div key={currency} className='text-xl font-bold'>
+                      {formatCurrency(amount * 12, currency)}
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className='text-2xl font-bold'>
+                {formatCurrency(0, 'USD')}
+              </div>
+            )}
+            <p className='text-xs text-muted-foreground mt-2'>
               Projected annual spending
             </p>
           </CardContent>
@@ -126,7 +153,6 @@ export default async function DashboardPage() {
               <TableBody>
                 {stats.upcomingRenewals.map((sub: any) => {
                   const daysUntil = getDaysUntil(sub.next_renew_at);
-                  console.log('sub', sub);
                   return (
                     <TableRow key={sub.id}>
                       <TableCell className='font-medium'>
@@ -176,29 +202,50 @@ export default async function DashboardPage() {
             <CardDescription>Monthly spending breakdown</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className='space-y-4'>
+            <div className='space-y-6'>
               {Object.entries(stats.spendingByCategory)
-                .sort(([, a], [, b]) => (b as number) - (a as number))
-                .map(([category, amount]) => {
-                  const percentage = (
-                    ((amount as number) / stats.monthlyTotal) *
-                    100
-                  ).toFixed(1);
+                .map(([category, currencies]) => {
+                  // Calculate total USD equivalent or just sort by category name?
+                  // For now, let's just render.
+                  return { category, currencies };
+                })
+                .sort((a, b) => a.category.localeCompare(b.category))
+                .map(({ category, currencies }) => {
                   return (
                     <div key={category} className='space-y-2'>
-                      <div className='flex items-center justify-between text-sm'>
-                        <span className='font-medium'>{category}</span>
-                        <span className='text-muted-foreground'>
-                          {formatCurrency(amount as number, stats.currency)} (
-                          {percentage}%)
-                        </span>
-                      </div>
-                      <div className='h-2 w-full rounded-full bg-muted overflow-hidden'>
-                        <div
-                          className='h-full bg-primary'
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
+                      <h4 className='text-sm font-medium border-b pb-1 mb-2'>
+                        {category}
+                      </h4>
+                      {Object.entries(currencies).map(([currency, amount]) => {
+                        // Calculate percentage relative to that currency's total
+                        const totalForCurrency =
+                          stats.monthlyTotal[currency] || 0;
+                        const percentage =
+                          totalForCurrency > 0
+                            ? (
+                                ((amount as number) / totalForCurrency) *
+                                100
+                              ).toFixed(1)
+                            : '0';
+
+                        return (
+                          <div key={currency} className='space-y-1'>
+                            <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                              <span>{currency}</span>
+                              <span>
+                                {formatCurrency(amount as number, currency)} (
+                                {percentage}%)
+                              </span>
+                            </div>
+                            <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
+                              <div
+                                className='h-full bg-primary'
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}

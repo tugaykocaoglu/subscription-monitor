@@ -56,3 +56,9 @@ export async function getProviders() {
     .order('display_name');
   return data || [];
 }
+
+export async function getCurrencies() {
+  const supabase = await createClient();
+  const { data } = await supabase.from('currencies').select('*').order('name');
+  return data || [];
+}

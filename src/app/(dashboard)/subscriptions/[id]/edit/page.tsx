@@ -3,6 +3,7 @@ import {
   getCategories,
   getProviders,
   getSubscriptionById,
+  getCurrencies,
 } from '@/server/queries/subscriptions';
 import { notFound } from 'next/navigation';
 
@@ -12,10 +13,11 @@ export default async function EditSubscriptionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [subscription, categories, providers] = await Promise.all([
+  const [subscription, categories, providers, currencies] = await Promise.all([
     getSubscriptionById(id),
     getCategories(),
     getProviders(),
+    getCurrencies(),
   ]);
 
   if (!subscription) {
@@ -29,6 +31,7 @@ export default async function EditSubscriptionPage({
         initialData={subscription}
         categories={categories}
         providers={providers}
+        currencies={currencies}
         isEditing
       />
     </div>

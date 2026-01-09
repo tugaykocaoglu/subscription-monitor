@@ -7,6 +7,7 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,10 +20,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
+import { CurrencyType } from '@/types';
+
 interface Props {
   initialData?: any;
   categories: { id: number; name: string }[];
   providers: { id: number; display_name: string }[];
+  currencies: CurrencyType[];
   isEditing?: boolean;
 }
 
@@ -30,17 +34,25 @@ export function SubscriptionForm({
   initialData,
   categories,
   providers,
+  currencies,
   isEditing,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(formData: FormData) {
-    const result = await (isEditing && initialData
-      ? updateSubscription(initialData.id, formData)
-      : createSubscription(formData));
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const result = await (isEditing && initialData
+        ? updateSubscription(initialData.id, formData)
+        : createSubscription(formData));
 
-    if (result?.error) {
-      setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -97,16 +109,19 @@ export function SubscriptionForm({
         </div>
 
         <div className='sm:col-span-3 space-y-2'>
-          <Label htmlFor='currency'>Currency (e.g. USD)</Label>
-          <Input
-            type='text'
-            name='currency'
-            id='currency'
-            required
-            maxLength={3}
-            defaultValue={initialData?.currency || 'USD'}
-            className='uppercase'
-          />
+          <Label htmlFor='currency'>Currency</Label>
+          <Select name='currency' defaultValue={initialData?.currency || 'USD'}>
+            <SelectTrigger>
+              <SelectValue placeholder='Select currency' />
+            </SelectTrigger>
+            <SelectContent>
+              {currencies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className='sm:col-span-3 space-y-2'>
@@ -178,10 +193,12 @@ export function SubscriptionForm({
       </div>
 
       <div className='flex justify-end space-x-4'>
-        <Button variant='outline' asChild>
+        <Button variant='outline' asChild disabled={isSubmitting}>
           <Link href='/subscriptions'>Cancel</Link>
         </Button>
-        <Button type='submit'>{isEditing ? 'Save' : 'Create'}</Button>
+        <LoadingButton type='submit' isLoading={isSubmitting}>
+          {isEditing ? 'Save' : 'Create'}
+        </LoadingButton>
       </div>
     </form>
   );

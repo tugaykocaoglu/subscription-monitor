@@ -28,18 +28,21 @@ export async function getDashboardStats() {
   if (!subscriptions || subscriptions.length === 0) {
     return {
       totalSubscriptions: 0,
-      monthlyTotal: 0,
+      monthlyTotal: {} as Record<string, number>,
       upcomingRenewals: [],
-      spendingByCategory: {},
+      spendingByCategory: {} as Record<string, Record<string, number>>,
       nextRenewal: null,
     };
   }
 
-  // Calculate total monthly spending
-  const monthlyTotal = subscriptions.reduce((total: number, sub: any) => {
+  // Calculate total monthly spending by currency
+  const monthlyTotal: Record<string, number> = {};
+
+  subscriptions.forEach((sub: any) => {
+    const currency = sub.currency || 'USD';
     const monthly = normalizeToMonthly(sub.amount, sub.billing_cycle);
-    return total + monthly;
-  }, 0);
+    monthlyTotal[currency] = (monthlyTotal[currency] || 0) + monthly;
+  });
 
   // Get upcoming renewals (next 30 days)
   const thirtyDaysFromNow = new Date();
@@ -59,13 +62,20 @@ export async function getDashboardStats() {
     })
     .slice(0, 5); // Top 5 upcoming
 
-  // Spending by category
-  const spendingByCategory: Record<string, number> = {};
+  // Spending by category and currency
+  const spendingByCategory: Record<string, Record<string, number>> = {};
+
   subscriptions.forEach((sub: any) => {
     const categoryName = sub.categories?.name || 'Uncategorized';
+    const currency = sub.currency || 'USD';
     const monthly = normalizeToMonthly(sub.amount, sub.billing_cycle);
-    spendingByCategory[categoryName] =
-      (spendingByCategory[categoryName] || 0) + monthly;
+
+    if (!spendingByCategory[categoryName]) {
+      spendingByCategory[categoryName] = {};
+    }
+
+    spendingByCategory[categoryName][currency] =
+      (spendingByCategory[categoryName][currency] || 0) + monthly;
   });
 
   // Next renewal date
@@ -77,6 +87,5 @@ export async function getDashboardStats() {
     upcomingRenewals,
     spendingByCategory,
     nextRenewal,
-    currency: subscriptions[0]?.currency || 'USD', // Use first subscription's currency
   };
 }

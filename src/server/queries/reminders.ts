@@ -59,24 +59,6 @@ export async function getSubscriptionsDueForReminder(supabaseClient?: any) {
   if (!rules || !data) return [];
 
   const now = new Date();
-  console.log('--- DEBUG START ---');
-  console.log('Now (Server UTC):', now.toISOString());
-  console.log('Rules Raw:', JSON.stringify(rules, null, 2));
-  console.log(
-    'Subscriptions Raw:',
-    JSON.stringify(
-      data.map((s: any) => ({
-        id: s.id,
-        name: s.custom_name,
-        next_renew_at: s.next_renew_at,
-        user_id: s.user_id,
-      })),
-      null,
-      2
-    )
-  );
-  console.log('--- DEBUG END ---');
-
   const subscriptionsNeedingReminders: any[] = [];
 
   console.log(

@@ -7,7 +7,7 @@ import { createReminderRule } from '@/server/actions/reminders';
 
 import { AlertCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/ui/loading-button';
 import {
   Card,
   CardContent,
@@ -34,11 +34,13 @@ import {
 } from '@/components/ui/select';
 import { DeleteReminderButton } from '@/components/reminders/DeleteReminderButton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function SettingsPage() {
   const [rules, setRules] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadRules();
@@ -56,34 +58,36 @@ export default function SettingsPage() {
   }
 
   async function handleCreateRule(formData: FormData) {
-    // Client-side Timezone Handling:
-    // Convert the user's selected "16:40" (Local) to UTC specific timestamp
-    const sendHourLocal = formData.get('send_hour') as string;
+    setIsSubmitting(true);
+    try {
+      // Client-side Timezone Handling:
+      // Convert the user's selected "16:40" (Local) to UTC specific timestamp
+      const sendHourLocal = formData.get('send_hour') as string;
 
-    if (sendHourLocal) {
-      const [hours, minutes] = sendHourLocal.split(':').map(Number);
+      if (sendHourLocal) {
+        const [hours, minutes] = sendHourLocal.split(':').map(Number);
 
-      // Create a date object for "today" at the specified local time
-      const date = new Date();
-      date.setHours(hours, minutes, 0, 0);
+        // Create a date object for "today" at the specified local time
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
 
-      // Extract UTC hours/minutes
-      // Example: User is TRT (UTC+3), enters 16:40.
-      // date object internally is 13:40 UTC.
-      // getUTCHours() returns 13.
-      const utcHours = date.getUTCHours().toString().padStart(2, '0');
-      const utcMinutes = date.getUTCMinutes().toString().padStart(2, '0');
+        // Extract UTC hours/minutes
+        const utcHours = date.getUTCHours().toString().padStart(2, '0');
+        const utcMinutes = date.getUTCMinutes().toString().padStart(2, '0');
 
-      // Update formData with UTC time string "13:40"
-      formData.set('send_hour', `${utcHours}:${utcMinutes}`);
-    }
+        // Update formData with UTC time string "13:40"
+        formData.set('send_hour', `${utcHours}:${utcMinutes}`);
+      }
 
-    setError(null);
-    const result = await createReminderRule(formData);
-    if (result?.error) {
-      setError(result.error);
-    } else {
-      await loadRules();
+      setError(null);
+      const result = await createReminderRule(formData);
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        await loadRules();
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -102,7 +106,6 @@ export default function SettingsPage() {
 
   return (
     <div className='space-y-6'>
-      {/* ... (rest of the component structure is same, just need to use formatTimeFromUTC in rendering) */}
       <div>
         <h1 className='text-3xl font-bold text-foreground'>Settings</h1>
         <p className='text-muted-foreground mt-2'>
@@ -125,7 +128,9 @@ export default function SettingsPage() {
             </Alert>
           )}
 
-          {rules.length > 0 ? (
+          {loading ? (
+            <Spinner />
+          ) : rules.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -209,7 +214,9 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <Button type='submit'>Add Reminder Rule</Button>
+              <LoadingButton type='submit' isLoading={isSubmitting}>
+                Add Reminder Rule
+              </LoadingButton>
             </form>
           </div>
         </CardContent>
